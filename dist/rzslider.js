@@ -1,7 +1,7 @@
 /*! angularjs-slider - v2.8.0 - 
  (c) Rafal Zajac <rzajac@gmail.com>, Valentin Hervieu <valentin@hervieu.me>, Jussi Saarivirta <jusasi@gmail.com>, Angelin Sirbu <angelin.sirbu@gmail.com> - 
  https://github.com/angular-slider/angularjs-slider - 
- 2016-02-13 */
+ 2016-03-11 */
 /*jslint unparam: true */
 /*global angular: false, console: false, define, module */
 (function(root, factory) {
@@ -1062,6 +1062,7 @@
       /**
        * Return the translated value if a translate function is provided else the original value
        * @param value
+       * @param which if it's min or max handle
        * @returns {*}
        */
       getDisplayValue: function(value, which) {
@@ -1072,11 +1073,13 @@
        * Round value to step and precision based on minValue
        *
        * @param {number} value
+       * @param {number} customStep a custom step to override the defined step
        * @returns {number}
        */
-      roundStep: function(value) {
-        var steppedDifference = parseFloat((value - this.minValue) / this.step).toPrecision(12);
-        steppedDifference = Math.round(+steppedDifference) * this.step;
+      roundStep: function(value, customStep) {
+        var step = customStep ? customStep : this.step,
+          steppedDifference = parseFloat((value - this.minValue) / step).toPrecision(12);
+        steppedDifference = Math.round(+steppedDifference) * step;
         var newValue = (this.minValue + (+steppedDifference)).toFixed(this.precision);
         return +newValue;
       },
@@ -1309,7 +1312,7 @@
             this.fullBar.on('mousedown', angular.bind(this, this.onStart, null, null));
             this.fullBar.on('mousedown', angular.bind(this, this.onMove, this.fullBar));
             this.ticks.on('mousedown', angular.bind(this, this.onStart, null, null));
-            this.ticks.on('mousedown', angular.bind(this, this.onMove, this.ticks));
+            this.ticks.on('mousedown', angular.bind(this, this.onTickClick, this.ticks));
           }
         }
 
@@ -1329,7 +1332,7 @@
             this.fullBar.on('touchstart', angular.bind(this, this.onStart, null, null));
             this.fullBar.on('touchstart', angular.bind(this, this.onMove, this.fullBar));
             this.ticks.on('touchstart', angular.bind(this, this.onStart, null, null));
-            this.ticks.on('touchstart', angular.bind(this, this.onMove, this.ticks));
+            this.ticks.on('touchstart', angular.bind(this, this.onTickClick, this.ticks));
           }
         }
 
@@ -1398,9 +1401,10 @@
        *
        * @param {jqLite} pointer
        * @param {Event}  event The event
+       * @param {boolean}  fromTick if the event occured on a tick or not
        * @returns {undefined}
        */
-      onMove: function(pointer, event) {
+      onMove: function(pointer, event, fromTick) {
         var newOffset = this.getEventPosition(event),
           newValue;
 
@@ -1410,7 +1414,10 @@
           newValue = this.maxValue;
         } else {
           newValue = this.offsetToValue(newOffset);
-          newValue = this.roundStep(newValue);
+          if(fromTick && angular.isNumber(this.options.showTicks))
+            newValue = this.roundStep(newValue, this.options.showTicks);
+          else
+            newValue = this.roundStep(newValue);
         }
         this.positionTrackingHandle(newValue);
       },
@@ -1435,6 +1442,10 @@
         $document.off(moveEventName, ehMove);
         this.scope.$emit('slideEnded');
         this.callOnEnd();
+      },
+
+      onTickClick: function(pointer, event) {
+        this.onMove(pointer, event, true);
       },
 
       onPointerFocus: function(pointer, ref) {
